@@ -309,6 +309,7 @@ void avfilter_register_all(void)
     REGISTER_FILTER(TRIM,           trim,           vf);
     REGISTER_FILTER(UNSHARP,        unsharp,        vf);
     REGISTER_FILTER(USPP,           uspp,           vf);
+    REGISTER_FILTER(V4L2_M2M,       v4l2_m2m,       vf);
     REGISTER_FILTER(VAGUEDENOISER,  vaguedenoiser,  vf);
     REGISTER_FILTER(VECTORSCOPE,    vectorscope,    vf);
     REGISTER_FILTER(VFLIP,          vflip,          vf);
