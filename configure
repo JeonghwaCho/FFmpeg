@@ -1637,6 +1637,7 @@ SUBSYSTEM_LIST="
     pixelutils
     network
     rdft
+    v4l2
 "
 
 CONFIG_LIST="
@@ -2690,6 +2691,7 @@ omx_extralibs='$ldl'
 qsvdec_select="qsv"
 qsvenc_select="qsv"
 vaapi_encode_deps="vaapi"
+v4l2_deps_any="linux_videodev2_h sys_videoio_h"
 
 hwupload_cuda_filter_deps="cuda"
 scale_npp_filter_deps="cuda libnpp"
@@ -2958,8 +2960,8 @@ sdl2_outdev_deps="sdl2"
 sndio_indev_deps="sndio_h"
 sndio_outdev_deps="sndio_h"
 v4l_indev_deps="linux_videodev_h"
-v4l2_indev_deps_any="linux_videodev2_h sys_videoio_h"
-v4l2_outdev_deps_any="linux_videodev2_h sys_videoio_h"
+v4l2_indev_select="v4l2"
+v4l2_outdev_select="v4l2"
 vfwcap_indev_deps="capCreateCaptureWindow vfwcap_defines"
 vfwcap_indev_extralibs="-lavicap32"
 x11grab_indev_deps="x11grab"
