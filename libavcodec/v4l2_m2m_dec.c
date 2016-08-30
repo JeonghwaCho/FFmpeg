@@ -102,6 +102,7 @@ static av_cold int v4lm2m_decode_init(AVCodecContext *avctx) {
 
     s->capture_pool.av_pix_fmt = avctx->pix_fmt;
     s->capture_pool.av_codec_id = AV_CODEC_ID_RAWVIDEO;
+    s->capture_pool_needs_format = 1;
     s->capture_pool.default_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 
     if(ret = ff_v4lm2m_codec_init(avctx))
