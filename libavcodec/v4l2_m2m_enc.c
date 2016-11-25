@@ -97,19 +97,25 @@ static av_cold int v4lm2m_encode_init(AVCodecContext *avctx) {
 
     if( (ret = ff_v4lm2m_codec_init(avctx)) )
         return ret;
-
     SET_V4L_EXT_CTRL(value, V4L2_CID_MPEG_VIDEO_GOP_SIZE, avctx->gop_size, V4L2_CTRL_CLASS_MPEG, "gop size");
+    av_log(avctx, AV_LOG_ERROR, "gop_size: %d\n", avctx->gop_size);
+    if (avctx->bit_rate > 1) SET_V4L_EXT_CTRL(value, V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE, 1, V4L2_CTRL_CLASS_MPEG, "enable bitrate control");
     SET_V4L_EXT_CTRL(value, V4L2_CID_MPEG_VIDEO_BITRATE , avctx->bit_rate, V4L2_CTRL_CLASS_MPEG, "bit rate");
+    av_log(avctx, AV_LOG_ERROR, "Enabling bitrate control if required rate %d > 1\n", avctx->bit_rate);
     SET_V4L_EXT_CTRL(value, V4L2_CID_MPEG_VIDEO_HEADER_MODE, V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME, V4L2_CTRL_CLASS_MPEG, "header mode");
     SET_V4L_EXT_CTRL(value, V4L2_CID_MPEG_VIDEO_B_FRAMES, avctx->max_b_frames, V4L2_CTRL_CLASS_MPEG, "number of B-frames");
-
+    av_log(avctx, AV_LOG_ERROR, "Max b-frames: %d\n", avctx->max_b_frames);
     switch(avctx->codec_id) {
         case AV_CODEC_ID_H264:
             val = v4l_h264_profile_from_ff(avctx->profile);
             if(val >= 0)
                  SET_V4L_EXT_CTRL(value, V4L2_CID_MPEG_VIDEO_H264_PROFILE, val, V4L2_CTRL_CLASS_MPEG, "h264 profile");
             SET_V4L_EXT_CTRL(value, V4L2_CID_MPEG_VIDEO_H264_MIN_QP, avctx->qmin, V4L2_CTRL_CLASS_MPEG, "minimum video quantizer scale");
+//            SET_V4L_EXT_CTRL(value, V4L2_CID_MPEG_VIDEO_H264_MAX_QP, avctx->qmax, V4L2_CTRL_CLASS_MPEG, "maximum video quantizer scale");
+//	    avctx->qmax=51; //for Samsung the encoder goes to 51
             SET_V4L_EXT_CTRL(value, V4L2_CID_MPEG_VIDEO_H264_MAX_QP, avctx->qmax, V4L2_CTRL_CLASS_MPEG, "maximum video quantizer scale");
+            av_log(avctx, AV_LOG_ERROR, "Min/max quantizer scale: %d, %d\n", avctx->qmin, avctx->qmax);
+	    SET_V4L_EXT_CTRL(value, V4L2_CID_MPEG_VIDEO_H264_LEVEL, 10, V4L2_CTRL_CLASS_MPEG, "h264 profile");
             break;
         case AV_CODEC_ID_MPEG4:
             val = v4l_mpeg4_profile_from_ff(avctx->profile);
