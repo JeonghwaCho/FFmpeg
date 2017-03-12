@@ -19,6 +19,7 @@ HEADERS = avcodec.h                                                     \
           videotoolbox.h                                                \
           vorbis_parser.h                                               \
           xvmc.h                                                        \
+          v4l2.h                                                        \
 
 OBJS = allcodecs.o                                                      \
        audioconvert.o                                                   \
@@ -126,7 +127,8 @@ OBJS-$(CONFIG_STARTCODE)               += startcode.o
 OBJS-$(CONFIG_TEXTUREDSP)              += texturedsp.o
 OBJS-$(CONFIG_TEXTUREDSPENC)           += texturedspenc.o
 OBJS-$(CONFIG_TPELDSP)                 += tpeldsp.o
-OBJS-$(CONFIG_V4L2)                    += v4l2-common.o
+OBJS-$(CONFIG_V4L2)                    += v4l2-common.o v4l2-buffers.o
+OBJS-$(CONFIG_V4L2_M2M)                += v4l2_m2m.o
 OBJS-$(CONFIG_VAAPI_ENCODE)            += vaapi_encode.o
 OBJS-$(CONFIG_VC1DSP)                  += vc1dsp.o
 OBJS-$(CONFIG_VIDEODSP)                += videodsp.o
@@ -137,6 +139,17 @@ OBJS-$(CONFIG_WMA_FREQS)               += wma_freqs.o
 OBJS-$(CONFIG_WMV2DSP)                 += wmv2dsp.o
 
 # decoders/encoders
+OBJS-$(CONFIG_H263_V4L2M2M_DECODER)    += v4l2_m2m_dec.o
+OBJS-$(CONFIG_H263_V4L2M2M_ENCODER)    += v4l2_m2m_enc.o
+OBJS-$(CONFIG_H264_V4L2M2M_DECODER)    += v4l2_m2m_dec.o
+OBJS-$(CONFIG_H264_V4L2M2M_ENCODER)    += v4l2_m2m_enc.o
+OBJS-$(CONFIG_MPEG1_V4L2M2M_DECODER)   += v4l2_m2m_dec.o
+OBJS-$(CONFIG_MPEG2_V4L2M2M_DECODER)   += v4l2_m2m_dec.o
+OBJS-$(CONFIG_MPEG4_V4L2M2M_DECODER)   += v4l2_m2m_dec.o
+OBJS-$(CONFIG_MPEG4_V4L2M2M_ENCODER)   += v4l2_m2m_enc.o
+OBJS-$(CONFIG_VC1_V4L2M2M_DECODER)     += v4l2_m2m_dec.o
+OBJS-$(CONFIG_VP8_V4L2M2M_DECODER)     += v4l2_m2m_dec.o
+OBJS-$(CONFIG_VP8_V4L2M2M_ENCODER)     += v4l2_m2m_enc.o
 OBJS-$(CONFIG_ZERO12V_DECODER)         += 012v.o
 OBJS-$(CONFIG_A64MULTI_ENCODER)        += a64multienc.o elbg.o
 OBJS-$(CONFIG_A64MULTI5_ENCODER)       += a64multienc.o elbg.o
