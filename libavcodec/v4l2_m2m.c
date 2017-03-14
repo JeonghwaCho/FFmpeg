@@ -220,6 +220,8 @@ int avpriv_v4lm2m_init(V4Lm2mContext* s, void* log_ctx) {
         const char pref[] = "video";
         char *devname_save = s->devname;
         char tmpbuf[PATH_MAX];
+        char *p;
+        char drivername[64];
 
         av_log(log_ctx, AV_LOG_INFO, "Device path not set, probing /dev/video*\n");
 
@@ -229,6 +231,25 @@ int avpriv_v4lm2m_init(V4Lm2mContext* s, void* log_ctx) {
         for(dp = readdir(dirp); dp; dp = readdir(dirp)) {
             if(!strncmp(dp->d_name, pref, sizeof(pref)-1)) {
                 errno = 0;
+                // open the v4l2 device to get the drivername
+                snprintf(tmpbuf, sizeof(tmpbuf)-1, "/sys/class/video4linux/%s/name", dp->d_name);
+                FILE *fp = fopen(tmpbuf, "r");
+                if (fgets(drivername, 32, fp) != NULL) {
+                    p = strchr(drivername, '\n');
+                    if (p != NULL)
+                        *p = '\0';
+                } else {
+                     fclose(fp);
+                     continue;
+                }
+                fclose(fp);
+
+                if ((s->device_type == decoder && strstr(drivername, "dec") == NULL) ||
+                    (s->device_type == encoder && strstr(drivername, "enc") == NULL)) {
+                    av_log(log_ctx, AV_LOG_INFO, "%s is not the one we want\n", drivername);
+                    continue;
+                }
+
                 snprintf(tmpbuf, sizeof(tmpbuf)-1, "/dev/%s", dp->d_name);
                 av_log(log_ctx, AV_LOG_DEBUG, "Probing %s\n", tmpbuf);
                 s->devname = tmpbuf;

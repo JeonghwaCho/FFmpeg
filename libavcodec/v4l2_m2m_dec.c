@@ -94,6 +94,8 @@ static av_cold int v4lm2m_decode_init(AVCodecContext *avctx) {
     int ret;
     V4Lm2mContext *s = avctx->priv_data;
 
+    s->device_type = decoder;
+
     s->output_pool.av_pix_fmt  = AV_PIX_FMT_NONE;
     s->output_pool.av_codec_id = avctx->codec_id;
     s->output_pool_needs_format = 1;

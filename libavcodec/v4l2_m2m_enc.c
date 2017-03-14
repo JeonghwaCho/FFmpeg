@@ -77,6 +77,8 @@ static av_cold int v4lm2m_encode_init(AVCodecContext *avctx) {
     int ret, val;
     V4Lm2mContext *s = avctx->priv_data;
 
+    s->device_type = encoder;
+
     s->output_pool.av_pix_fmt = avctx->pix_fmt;
     s->output_pool.width = avctx->width;
     s->output_pool.height = avctx->height;
