@@ -196,9 +196,11 @@ static void register_all(void)
     REGISTER_DECODER(G2M,               g2m);
     REGISTER_ENCDEC (GIF,               gif);
     REGISTER_ENCDEC (H261,              h261);
+    REGISTER_ENCDEC (H263_V4L2M2M,      h263_v4l2m2m);
     REGISTER_ENCDEC (H263,              h263);
     REGISTER_DECODER(H263I,             h263i);
     REGISTER_ENCDEC (H263P,             h263p);
+    REGISTER_ENCDEC (H264_V4L2M2M,      h264_v4l2m2m);
     REGISTER_DECODER(H264,              h264);
     REGISTER_DECODER(H264_CRYSTALHD,    h264_crystalhd);
     REGISTER_DECODER(H264_MEDIACODEC,   h264_mediacodec);
@@ -209,6 +211,7 @@ static void register_all(void)
     REGISTER_DECODER(H264_VDPAU,        h264_vdpau);
 #endif
     REGISTER_ENCDEC (HAP,               hap);
+    REGISTER_ENCDEC (HEVC_V4L2M2M,      hevc_v4l2m2m);
     REGISTER_DECODER(HEVC,              hevc);
     REGISTER_DECODER(HEVC_QSV,          hevc_qsv);
     REGISTER_DECODER(HNM4_VIDEO,        hnm4_video);
@@ -243,17 +246,20 @@ static void register_all(void)
 #endif /* FF_API_XVMC */
     REGISTER_ENCDEC (MPEG1VIDEO,        mpeg1video);
     REGISTER_ENCDEC (MPEG2VIDEO,        mpeg2video);
+    REGISTER_ENCDEC (MPEG4_V4L2M2M,     mpeg4_v4l2m2m);
     REGISTER_ENCDEC (MPEG4,             mpeg4);
     REGISTER_DECODER(MPEG4_CRYSTALHD,   mpeg4_crystalhd);
     REGISTER_DECODER(MPEG4_MMAL,        mpeg4_mmal);
 #if FF_API_VDPAU
     REGISTER_DECODER(MPEG4_VDPAU,       mpeg4_vdpau);
 #endif
+    REGISTER_DECODER(MPEG1_V4L2M2M,     mpeg1_v4l2m2m);
     REGISTER_DECODER(MPEGVIDEO,         mpegvideo);
 #if FF_API_VDPAU
     REGISTER_DECODER(MPEG_VDPAU,        mpeg_vdpau);
     REGISTER_DECODER(MPEG1_VDPAU,       mpeg1_vdpau);
 #endif
+    REGISTER_DECODER(MPEG2_V4L2M2M,     mpeg2_v4l2m2m);
     REGISTER_DECODER(MPEG2_MMAL,        mpeg2_mmal);
     REGISTER_DECODER(MPEG2_CRYSTALHD,   mpeg2_crystalhd);
     REGISTER_DECODER(MPEG2_QSV,         mpeg2_qsv);
@@ -342,6 +348,7 @@ static void register_all(void)
     REGISTER_ENCDEC (V410,              v410);
     REGISTER_DECODER(VB,                vb);
     REGISTER_DECODER(VBLE,              vble);
+    REGISTER_DECODER(VC1_V4L2M2M,       vc1_v4l2m2m);
     REGISTER_DECODER(VC1,               vc1);
     REGISTER_DECODER(VC1_CRYSTALHD,     vc1_crystalhd);
 #if FF_API_VDPAU
@@ -360,7 +367,9 @@ static void register_all(void)
     REGISTER_DECODER(VP6A,              vp6a);
     REGISTER_DECODER(VP6F,              vp6f);
     REGISTER_DECODER(VP7,               vp7);
+    REGISTER_ENCDEC (VP8_V4L2M2M,       vp8_v4l2m2m);
     REGISTER_DECODER(VP8,               vp8);
+    REGISTER_DECODER(VP9_V4L2M2M,       vp9_v4l2m2m);
     REGISTER_DECODER(VP9,               vp9);
     REGISTER_DECODER(VQA,               vqa);
     REGISTER_DECODER(WEBP,              webp);
