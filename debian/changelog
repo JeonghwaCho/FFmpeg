@@ -1,3 +1,9 @@
+ffmpeg (7:3.3.3-5) unstable; urgency=medium
+
+  * add support for v4l2m2m codecs
+
+ -- memeka <mihailescu2m@gmail.com>  Thu, 19 Oct 2017 13:29:39 +1030
+
 ffmpeg (7:3.3.3-4) unstable; urgency=medium
 
   * debian/control:
