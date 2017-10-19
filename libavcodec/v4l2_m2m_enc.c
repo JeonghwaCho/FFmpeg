@@ -317,7 +317,7 @@ static av_cold int v4l2_encode_init(AVCodecContext *avctx)
 static const AVOption options[] = {
     V4L_M2M_DEFAULT_OPTS,
     { "num_capture_buffers", "Number of buffers in the capture context",
-        OFFSET(capture.num_buffers), AV_OPT_TYPE_INT, {.i64 = 4 }, 4, INT_MAX, FLAGS },
+        OFFSET(capture.num_buffers), AV_OPT_TYPE_INT, {.i64 = 8}, 8, INT_MAX, FLAGS },
     { NULL },
 };
 
