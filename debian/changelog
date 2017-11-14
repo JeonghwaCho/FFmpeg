@@ -1,3 +1,10 @@
+ffmpeg (7:3.4-9) testing; urgency=medium
+
+  * fixes for v4l2m2m
+  * add drmprime
+
+ -- memeka <mihailescu2m@gmail.com>  Tue, 14 Nov 2017 11:39:51 +1030
+
 ffmpeg (7:3.4-2) unstable; urgency=medium
 
   * Upload to unstable.
