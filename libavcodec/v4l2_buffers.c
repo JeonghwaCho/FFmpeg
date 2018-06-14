@@ -223,6 +223,13 @@ static uint8_t * v4l2_get_drm_frame(V4L2Buffer *avbuf)
     }
 
     switch (avbuf->context->av_pix_fmt) {
+    case AV_PIX_FMT_YUYV422:
+
+        layer->format = DRM_FORMAT_YUYV;
+        layer->nb_planes = 1;
+
+        break;
+
     case AV_PIX_FMT_NV12:
     case AV_PIX_FMT_NV21:
 
