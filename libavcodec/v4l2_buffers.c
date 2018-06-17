@@ -211,10 +211,11 @@ static uint8_t * v4l2_get_drm_frame(V4L2Buffer *avbuf)
     AVDRMLayerDescriptor *layer;
 
     /* fill the DRM frame descriptor */
-    drm_desc->nb_objects = 1;
+    drm_desc->nb_objects = avbuf->num_planes;
     drm_desc->nb_layers = 1;
 
     layer = &drm_desc->layers[0];
+    layer->nb_planes = avbuf->num_planes;
 
     for (int i = 0; i < avbuf->num_planes; i++) {
         layer->planes[i].object_index = i;
@@ -235,38 +236,41 @@ static uint8_t * v4l2_get_drm_frame(V4L2Buffer *avbuf)
 
         layer->format = avbuf->context->av_pix_fmt == AV_PIX_FMT_NV12 ?
             DRM_FORMAT_NV12 : DRM_FORMAT_NV21;
-        layer->nb_planes = 2;
 
         if (avbuf->num_planes > 1)
             break;
 
+        layer->nb_planes = 2;
+
         layer->planes[1].object_index = 0;
         layer->planes[1].offset = avbuf->plane_info[0].bytesperline *
-            avbuf->context->format.fmt.pix_mp.height;
+            avbuf->context->format.fmt.pix.height;
         layer->planes[1].pitch = avbuf->plane_info[0].bytesperline;
         break;
 
     case AV_PIX_FMT_YUV420P:
 
         layer->format = DRM_FORMAT_YUV420;
-        layer->nb_planes = 3;
 
         if (avbuf->num_planes > 1)
             break;
 
+        layer->nb_planes = 3;
+
         layer->planes[1].object_index = 0;
         layer->planes[1].offset = avbuf->plane_info[0].bytesperline *
-            avbuf->context->format.fmt.pix_mp.height;
+            avbuf->context->format.fmt.pix.height;
         layer->planes[1].pitch = avbuf->plane_info[0].bytesperline >> 1;
 
         layer->planes[2].object_index = 0;
         layer->planes[2].offset = layer->planes[1].offset +
             ((avbuf->plane_info[0].bytesperline *
-              avbuf->context->format.fmt.pix_mp.height) >> 2);
+              avbuf->context->format.fmt.pix.height) >> 2);
         layer->planes[2].pitch = avbuf->plane_info[0].bytesperline >> 1;
         break;
 
     default:
+        drm_desc->nb_layers = 0;
         break;
     }
 
@@ -314,12 +318,10 @@ static int v4l2_buffer_export_drm(V4L2Buffer* avbuf)
             return AVERROR(errno);
 
         if (V4L2_TYPE_IS_MULTIPLANAR(avbuf->buf.type)) {
-            avbuf->buf.m.planes[i].m.fd = expbuf.fd;
             /* drm frame */
             avbuf->drm_frame.objects[i].size = avbuf->buf.m.planes[i].length;
             avbuf->drm_frame.objects[i].fd = expbuf.fd;
         } else {
-            avbuf->buf.m.fd = expbuf.fd;
             /* drm frame */
             avbuf->drm_frame.objects[0].size = avbuf->buf.length;
             avbuf->drm_frame.objects[0].fd = expbuf.fd;
@@ -471,7 +473,7 @@ int ff_v4l2_buffer_buf_to_avframe(AVFrame *frame, V4L2Buffer *avbuf)
             frame->linesize[1] = avbuf->plane_info[0].bytesperline;
             frame->data[1] = frame->buf[0]->data +
                 avbuf->plane_info[0].bytesperline *
-                avbuf->context->format.fmt.pix_mp.height;
+                avbuf->context->format.fmt.pix.height;
             break;
         default:
             break;
