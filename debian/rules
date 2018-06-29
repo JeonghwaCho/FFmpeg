@@ -87,7 +87,8 @@ CONFIG := --prefix=/usr \
 	--enable-omx \
 	--enable-openal \
 	--enable-opengl \
-	--enable-sdl2
+	--enable-sdl2 \
+	--enable-v4l2_m2m
 
 # The standard configuration only uses the shared CONFIG.
 CONFIG_standard = --enable-shared
