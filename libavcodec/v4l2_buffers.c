@@ -270,6 +270,9 @@ static uint8_t * v4l2_get_drm_frame(V4L2Buffer *avbuf)
         break;
 
     case AV_PIX_FMT_BGR0:
+        layer->format = DRM_FORMAT_XRGB8888;
+        layer->nb_planes = 1;
+        break;
     case AV_PIX_FMT_BGRA:
         layer->format = DRM_FORMAT_ARGB8888;
         layer->nb_planes = 1;

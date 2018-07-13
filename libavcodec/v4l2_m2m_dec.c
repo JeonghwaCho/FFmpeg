@@ -74,7 +74,7 @@ static void ff_v4l2_capture_set_crop(V4L2m2mContext *s, int width, int height)
             if (ret) {
                 av_log(s->avctx, AV_LOG_WARNING, "VIDIOC_G_CROP ioctl\n");
             } else {
-                av_log(s->avctx, AV_LOG_DEBUG, "crop output %dx%d\n", crop.c.width, crop.c.height);
+                av_log(s->avctx, AV_LOG_INFO, "crop output %dx%d\n", crop.c.width, crop.c.height);
                 /* update the size of the resulting frame */
                 s->capture.height = crop.c.height;
                 s->capture.width  = crop.c.width;
@@ -100,6 +100,8 @@ static int gsc_try_start(AVCodecContext *avctx, V4L2Context *mfc_capture)
     memcpy(&output->format, &mfc_capture->format, sizeof(struct v4l2_format));
     output->format.type = output->type;
     output->av_pix_fmt = mfc_capture->av_pix_fmt;
+    if (gsc->output_drm)
+        capture->av_pix_fmt = AV_PIX_FMT_BGR0;
 
     /* 1. probe device and set formats */
     ret = ff_v4l2_m2m_device_init(avctx, gsc);
@@ -305,6 +307,11 @@ static av_cold int v4l2_decode_init(AVCodecContext *avctx)
     capture = &s->capture;
     output = &s->output;
 
+    if (avctx->coded_width == 0 || avctx->coded_height == 0) {
+        avctx->coded_width = 1920;
+        avctx->coded_height = 1080;
+    }
+
     /* ff_v4l2_m2m_create_context for GSC converter */
 
     V4L2m2mContext *gsc;
@@ -353,6 +360,8 @@ static av_cold int v4l2_decode_init(AVCodecContext *avctx)
 
     capture->av_codec_id = AV_CODEC_ID_RAWVIDEO;
     capture->av_pix_fmt = avctx->pix_fmt;
+
+    av_log(avctx, AV_LOG_INFO, "requested pix_fmt format: %s, with dimensions: %d x %d\n", av_get_pix_fmt_name(avctx->pix_fmt), avctx->coded_width, avctx->coded_height);
 
     /* the client requests the codec to generate DRM frames:
      *   - data[0] will therefore point to the returned AVDRMFrameDescriptor
