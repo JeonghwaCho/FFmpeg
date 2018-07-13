@@ -411,7 +411,17 @@ static int v4l2_release_buffers(V4L2Context* ctx)
             struct V4L2Plane_info *p = &buffer->plane_info[j];
 
             if (V4L2_TYPE_IS_OUTPUT(ctx->type)) {
-                /* output buffers are not EXPORTED */
+                if (ctx->memory == V4L2_MEMORY_DMABUF) {
+                    /* close the exported MFC capture buffers */
+                    if (buffer->planes[j].m.fd >= 0) {
+                        if (close(buffer->planes[j].m.fd) < 0) {
+                            av_log(logger(ctx), AV_LOG_ERROR, "%s close drm fd "
+                                "[buffer=%2d, plane=%d, fd=%2d] - %s \n",
+                                ctx->name, i, j, buffer->planes[j].m.fd,
+                                av_err2str(AVERROR(errno)));
+                        }
+                    }
+                }
                 goto unmap;
             }
 
@@ -426,8 +436,9 @@ static int v4l2_release_buffers(V4L2Context* ctx)
                     }
                 }
             }
+
 unmap:
-            if (p->mm_addr && p->length)
+            if (p->mm_addr && p->length && ctx->memory == V4L2_MEMORY_MMAP)
                 if (munmap(p->mm_addr, p->length) < 0)
                     av_log(logger(ctx), AV_LOG_ERROR, "%s unmap plane (%s))\n",
                         ctx->name, av_err2str(AVERROR(errno)));

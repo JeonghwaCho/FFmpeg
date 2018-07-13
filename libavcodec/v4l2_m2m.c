@@ -329,6 +329,21 @@ int ff_v4l2_m2m_codec_end(AVCodecContext *avctx)
     V4L2m2mContext* s = priv->context;
     int ret;
 
+    if (s->output_convert) {
+        V4L2m2mContext* gsc = priv->convert;
+        ret = ff_v4l2_context_set_status(&gsc->output, VIDIOC_STREAMOFF);
+        if (ret)
+            av_log(avctx, AV_LOG_ERROR, "GSC VIDIOC_STREAMOFF %s\n", gsc->output.name);
+
+        ret = ff_v4l2_context_set_status(&gsc->capture, VIDIOC_STREAMOFF);
+        if (ret)
+            av_log(avctx, AV_LOG_ERROR, "GSC VIDIOC_STREAMOFF %s\n", gsc->capture.name);
+
+        ff_v4l2_context_release(&gsc->output);
+        gsc->self_ref = NULL;
+        av_buffer_unref(&priv->convert_ref);
+    }
+
     ret = ff_v4l2_context_set_status(&s->output, VIDIOC_STREAMOFF);
     if (ret)
             av_log(avctx, AV_LOG_ERROR, "VIDIOC_STREAMOFF %s\n", s->output.name);
