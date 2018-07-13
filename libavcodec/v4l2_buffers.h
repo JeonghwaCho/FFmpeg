@@ -120,7 +120,7 @@ int ff_v4l2_buffer_avframe_to_buf(const AVFrame *frame, V4L2Buffer* out);
  *
  * @returns 0 in case of success, a negative AVERROR code otherwise
  */
-int ff_v4l2_buffer_initialize(V4L2Buffer* avbuf, int index);
+int ff_v4l2_buffer_initialize(V4L2Buffer* avbuf, int index, enum v4l2_memory memory, V4L2Buffer* aavbuf);
 
 /**
  * Enqueues a V4L2Buffer

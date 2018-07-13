@@ -39,12 +39,132 @@
 #include "v4l2_m2m.h"
 #include "v4l2_fmt.h"
 
+static void ff_v4l2_capture_set_crop(V4L2m2mContext *s, int width, int height)
+{
+    struct v4l2_selection selection;
+    struct v4l2_crop crop;
+    int ret;
+
+    memset(&selection, 0, sizeof(struct v4l2_selection));
+    selection.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    selection.r.width = width;
+    selection.r.height = height;
+    ret = ioctl(s->fd, VIDIOC_S_SELECTION, &selection);
+    if (!ret) {
+        ret = ioctl(s->fd, VIDIOC_G_SELECTION, &selection);
+        if (ret) {
+            av_log(s->avctx, AV_LOG_WARNING, "VIDIOC_G_SELECTION ioctl\n");
+        } else {
+            av_log(s->avctx, AV_LOG_DEBUG, "crop output %dx%d\n", selection.r.width, selection.r.height);
+            /* update the size of the resulting frame */
+            s->capture.height = selection.r.height;
+            s->capture.width  = selection.r.width;
+        }
+    } else {
+        av_log(s->avctx, AV_LOG_WARNING, "VIDIOC_S_SELECTION ioctl\n");
+        // use S_CROP and G_CROP
+        struct v4l2_crop crop;
+        memset(&crop, 0, sizeof(struct v4l2_crop));
+        crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+        crop.c.width = width;
+        crop.c.height = height;
+        ret = ioctl(s->fd, VIDIOC_S_CROP, &crop);
+        if (!ret) {
+            ret = ioctl(s->fd, VIDIOC_G_CROP, &crop);
+            if (ret) {
+                av_log(s->avctx, AV_LOG_WARNING, "VIDIOC_G_CROP ioctl\n");
+            } else {
+                av_log(s->avctx, AV_LOG_DEBUG, "crop output %dx%d\n", crop.c.width, crop.c.height);
+                /* update the size of the resulting frame */
+                s->capture.height = crop.c.height;
+                s->capture.width  = crop.c.width;
+            }
+        } else {
+            av_log(s->avctx, AV_LOG_ERROR, "VIDIOC_S_CROP ioctl\n");
+        }
+    }
+}
+
+static int gsc_try_start(AVCodecContext *avctx, V4L2Context *mfc_capture)
+{
+    V4L2m2mContext *mfc = ((V4L2m2mPriv*)avctx->priv_data)->context;
+    V4L2m2mContext *gsc = ((V4L2m2mPriv*)avctx->priv_data)->convert;
+    V4L2Context *const capture = &gsc->capture;
+    V4L2Context *const output = &gsc->output;
+    int ret;
+
+    av_log(avctx, AV_LOG_DEBUG, "== start configuring GSC ==\n");
+
+    /* 0. set GSC output settings from MFC capture */
+    output->num_buffers = mfc_capture->num_buffers;
+    memcpy(&output->format, &mfc_capture->format, sizeof(struct v4l2_format));
+    output->format.type = output->type;
+    output->av_pix_fmt = mfc_capture->av_pix_fmt;
+
+    /* 1. probe device and set formats */
+    ret = ff_v4l2_m2m_device_init(avctx, gsc);
+    if (ret) {
+        av_log(avctx, AV_LOG_ERROR, "can't configure converter\n");
+        return ret;
+    }
+
+    /* 2. init the output context with DMABUF buffers */
+    if (!output->buffers) {
+        ret = ff_v4l2_context_init_full(output, V4L2_MEMORY_MMAP, mfc_capture);
+        if (ret) {
+            av_log(avctx, AV_LOG_ERROR, "can't request output buffers\n");
+            return AVERROR(ENOMEM);
+        }
+    }
+
+    /* 3. get the capture format */
+    capture->format.type = capture->type;
+    ret = ioctl(gsc->fd, VIDIOC_G_FMT, &capture->format);
+    if (ret) {
+        av_log(avctx, AV_LOG_WARNING, "VIDIOC_G_FMT ioctl\n");
+        return ret;
+    }
+
+    /* 3.1 update the AVCodecContext */
+    avctx->pix_fmt = ff_v4l2_format_v4l2_to_avfmt(capture->format.fmt.pix_mp.pixelformat, AV_CODEC_ID_RAWVIDEO);
+    capture->av_pix_fmt = avctx->pix_fmt;
+
+    /* 4. set the crop parameters */
+    ff_v4l2_capture_set_crop(gsc, avctx->coded_width, avctx->coded_height);
+
+
+    /* 5. init the capture context now that we have the capture format */
+    if (!capture->buffers) {
+        ret = ff_v4l2_context_init(capture);
+        if (ret) {
+            av_log(avctx, AV_LOG_ERROR, "can't request capture buffers\n");
+            return AVERROR(ENOMEM);
+        }
+    }
+
+    /* 6. start the output process */
+    ret = ff_v4l2_context_set_status(output, VIDIOC_STREAMON);
+    if (ret) {
+        av_log(avctx, AV_LOG_DEBUG, "VIDIOC_STREAMON, on GSC output context\n");
+        return ret;
+    }
+
+    /* 7. start the capture process */
+    ret = ff_v4l2_context_set_status(capture, VIDIOC_STREAMON);
+    if (ret) {
+        av_log(avctx, AV_LOG_DEBUG, "VIDIOC_STREAMON, on GSC capture context\n");
+        return ret;
+    }
+
+    av_log(avctx, AV_LOG_DEBUG, "== done configuring GSC ==\n");
+    return 0;
+}
+
 static int v4l2_try_start(AVCodecContext *avctx)
 {
     V4L2m2mContext *s = ((V4L2m2mPriv*)avctx->priv_data)->context;
     V4L2Context *const capture = &s->capture;
     V4L2Context *const output = &s->output;
-    struct v4l2_selection selection;
     int ret;
 
     /* 1. start the output process */
@@ -59,33 +179,14 @@ static int v4l2_try_start(AVCodecContext *avctx)
     if (capture->streamon)
         return 0;
 
+    av_log(avctx, AV_LOG_DEBUG, "== start configuring MFC capture ==\n");
+
     /* 2. get the capture format */
     capture->format.type = capture->type;
     ret = ioctl(s->fd, VIDIOC_G_FMT, &capture->format);
     if (ret) {
         av_log(avctx, AV_LOG_WARNING, "VIDIOC_G_FMT ioctl\n");
         return ret;
-    }
-
-    /* 2.1 update the AVCodecContext */
-    avctx->pix_fmt = ff_v4l2_format_v4l2_to_avfmt(capture->format.fmt.pix_mp.pixelformat, AV_CODEC_ID_RAWVIDEO);
-    capture->av_pix_fmt = avctx->pix_fmt;
-
-    /* 3. set the crop parameters */
-    selection.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    selection.r.height = avctx->coded_height;
-    selection.r.width = avctx->coded_width;
-    ret = ioctl(s->fd, VIDIOC_S_SELECTION, &selection);
-    if (!ret) {
-        ret = ioctl(s->fd, VIDIOC_G_SELECTION, &selection);
-        if (ret) {
-            av_log(avctx, AV_LOG_WARNING, "VIDIOC_G_SELECTION ioctl\n");
-        } else {
-            av_log(avctx, AV_LOG_DEBUG, "crop output %dx%d\n", selection.r.width, selection.r.height);
-            /* update the size of the resulting frame */
-            capture->height = selection.r.height;
-            capture->width  = selection.r.width;
-        }
     }
 
     /* 4. init the capture context now that we have the capture format */
@@ -95,6 +196,26 @@ static int v4l2_try_start(AVCodecContext *avctx)
             av_log(avctx, AV_LOG_ERROR, "can't request capture buffers\n");
             return AVERROR(ENOMEM);
         }
+    }
+
+    av_log(avctx, AV_LOG_DEBUG, "== done configuring MFC capture ==\n");
+
+    /* check if conversion is needed */
+    capture->av_pix_fmt = ff_v4l2_format_v4l2_to_avfmt(capture->format.fmt.pix_mp.pixelformat, AV_CODEC_ID_RAWVIDEO);
+    if (avctx->pix_fmt != capture->av_pix_fmt) {
+        s->output_drm = 0;
+        s->output_convert = 1;
+        /* 3. configure GSC for conversion */
+        ret = gsc_try_start(avctx, capture);
+        if (ret) {
+            av_log(avctx, AV_LOG_ERROR, "can't configure converter\n");
+            return AVERROR_EXIT;
+        }
+    } else {
+        /* 2.1 update the AVCodecContext */
+        capture->av_pix_fmt = avctx->pix_fmt;
+        /* 3. set the crop parameters */
+        ff_v4l2_capture_set_crop(s, avctx->coded_width, avctx->coded_height);
     }
 
     /* 5. start the capture process */
@@ -183,6 +304,42 @@ static av_cold int v4l2_decode_init(AVCodecContext *avctx)
     capture = &s->capture;
     output = &s->output;
 
+    /* ff_v4l2_m2m_create_context for GSC converter */
+
+    V4L2m2mContext *gsc;
+    V4L2m2mPriv *priv = avctx->priv_data;
+
+    gsc = av_mallocz(sizeof(V4L2m2mContext));
+    if (!gsc)
+        return AVERROR(ENOMEM);
+
+    priv->convert_ref = av_buffer_create((uint8_t *) gsc, sizeof(V4L2m2mContext),
+                                         &v4l2_m2m_destroy_context, NULL, 0);
+    if (!priv->convert_ref) {
+        av_freep(gsc);
+        return AVERROR(ENOMEM);
+    }
+
+    priv->convert = gsc;
+
+    priv->convert->capture.num_buffers = priv->num_capture_buffers;
+    priv->convert->self_ref = priv->convert_ref;
+
+    gsc->output.height = gsc->capture.height = avctx->coded_height;
+    gsc->output.width = gsc->capture.width = avctx->coded_width;
+    gsc->output.av_codec_id = AV_CODEC_ID_RAWVIDEO;
+    gsc->output.av_pix_fmt = AV_PIX_FMT_NONE;
+    gsc->capture.av_codec_id = AV_CODEC_ID_RAWVIDEO;
+    gsc->capture.av_pix_fmt = avctx->pix_fmt;
+
+    priv->convert->device_type = V4L2_DEVICE_TYPE_CONVERTER;
+    priv->context->device_type = V4L2_DEVICE_TYPE_DECODER;
+
+    s->output_convert = 0;
+    gsc->output_convert = 0;
+
+    /* -------------------------------------------- */
+
     /* if these dimensions are invalid (ie, 0 or too small) an event will be raised
      * by the v4l2 driver; this event will trigger a full pipeline reconfig and
      * the proper values will be retrieved from the kernel driver.
@@ -202,8 +359,10 @@ static av_cold int v4l2_decode_init(AVCodecContext *avctx)
      *   - the DRM frame format is passed in the DRM frame descriptor layer.
      *       check the v4l2_get_drm_frame function.
      */
-    if (ff_get_format(avctx, avctx->codec->pix_fmts) == AV_PIX_FMT_DRM_PRIME)
+    if (ff_get_format(avctx, avctx->codec->pix_fmts) == AV_PIX_FMT_DRM_PRIME) {
         s->output_drm = 1;
+        gsc->output_drm = 1;
+    }
 
     ret = ff_v4l2_m2m_codec_init(avctx);
     if (ret) {
@@ -220,7 +379,7 @@ static av_cold int v4l2_decode_init(AVCodecContext *avctx)
 static const AVOption options[] = {
     V4L_M2M_DEFAULT_OPTS,
     { "num_capture_buffers", "Number of buffers in the capture context",
-        OFFSET(num_capture_buffers), AV_OPT_TYPE_INT, {.i64 = 20}, 20, INT_MAX, FLAGS },
+        OFFSET(num_capture_buffers), AV_OPT_TYPE_INT, {.i64 = 16}, 8, INT_MAX, FLAGS },
     { NULL},
 };
 

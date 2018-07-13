@@ -544,7 +544,7 @@ int ff_v4l2_buffer_avpkt_to_buf(const AVPacket *pkt, V4L2Buffer *out)
     return 0;
 }
 
-int ff_v4l2_buffer_initialize(V4L2Buffer* avbuf, int index)
+int ff_v4l2_buffer_initialize(V4L2Buffer* avbuf, int index, enum v4l2_memory memory, V4L2Buffer* aavbuf)
 {
     V4L2Context *ctx = avbuf->context;
     int ret, i;

@@ -47,6 +47,13 @@ typedef struct V4L2Context {
     enum v4l2_buf_type type;
 
     /**
+     * Type of this buffer memory.
+     * See V4L2_MEMORY_* in videodev2.h
+     * Readonly after init.
+     */
+    enum v4l2_memory memory;
+
+    /**
      * AVPixelFormat corresponding to this buffer context.
      * AV_PIX_FMT_NONE means this is an encoded stream.
      */
@@ -100,6 +107,7 @@ typedef struct V4L2Context {
  * @return 0 in case of success, a negative value representing the error otherwise.
  */
 int ff_v4l2_context_init(V4L2Context* ctx);
+int ff_v4l2_context_init_full(V4L2Context* ctx, enum v4l2_memory memory, V4L2Context* actx);
 
 /**
  * Sets the V4L2Context format in the v4l2 driver.

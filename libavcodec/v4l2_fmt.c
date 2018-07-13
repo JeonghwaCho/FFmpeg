@@ -41,6 +41,7 @@ static const struct fmt_conversion {
     { AV_FMT(BGR24),       AV_CODEC(RAWVIDEO),    V4L2_FMT(BGR24) },
     { AV_FMT(RGB24),       AV_CODEC(RAWVIDEO),    V4L2_FMT(RGB24) },
     { AV_FMT(BGR0),        AV_CODEC(RAWVIDEO),    V4L2_FMT(BGR32) },
+    { AV_FMT(BGRA),        AV_CODEC(RAWVIDEO),    V4L2_FMT(BGR32) },
     { AV_FMT(0RGB),        AV_CODEC(RAWVIDEO),    V4L2_FMT(RGB32) },
     { AV_FMT(GRAY8),       AV_CODEC(RAWVIDEO),    V4L2_FMT(GREY) },
     { AV_FMT(YUV420P),     AV_CODEC(RAWVIDEO),    V4L2_FMT(YUV420) },

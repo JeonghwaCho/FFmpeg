@@ -306,7 +306,7 @@ error:
     return ret;
 }
 
-static void v4l2_m2m_destroy_context(void *opaque, uint8_t *context)
+void v4l2_m2m_destroy_context(void *opaque, uint8_t *context)
 {
     V4L2m2mContext *s = (V4L2m2mContext*)context;
 
@@ -340,14 +340,13 @@ int ff_v4l2_m2m_codec_end(AVCodecContext *avctx)
     return 0;
 }
 
-int ff_v4l2_m2m_codec_init(AVCodecContext *avctx)
+int ff_v4l2_m2m_device_init(AVCodecContext *avctx, V4L2m2mContext *s)
 {
     int ret = AVERROR(EINVAL);
     struct dirent *entry;
     char node[PATH_MAX];
     DIR *dirp;
 
-    V4L2m2mContext *s = ((V4L2m2mPriv*)avctx->priv_data)->context;
     s->avctx = avctx;
 
     dirp = opendir("/dev");
@@ -379,6 +378,16 @@ int ff_v4l2_m2m_codec_init(AVCodecContext *avctx)
     av_log(s->avctx, AV_LOG_INFO, "Using device %s\n", node);
 
     return v4l2_configure_contexts(s);
+}
+
+int ff_v4l2_m2m_codec_init(AVCodecContext *avctx)
+{
+    int ret;
+    V4L2m2mContext *s = ((V4L2m2mPriv*)avctx->priv_data)->context;
+    av_log(avctx, AV_LOG_DEBUG, "== start configuring MFC output ==\n");
+    ret = ff_v4l2_m2m_device_init(avctx, s);
+    av_log(avctx, AV_LOG_DEBUG, "== done configuring MFC output ==\n");
+    return ret;
 }
 
 int ff_v4l2_m2m_create_context(AVCodecContext *avctx, V4L2m2mContext **s)

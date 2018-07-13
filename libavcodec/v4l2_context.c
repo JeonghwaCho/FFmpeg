@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
+#include "libavutil/pixdesc.h"
 #include "libavcodec/avcodec.h"
 #include "libavcodec/internal.h"
 #include "v4l2_buffers.h"
@@ -466,10 +467,14 @@ static inline int v4l2_try_raw_format(V4L2Context* ctx, enum AVPixelFormat pixfm
 
     fmt->type = ctx->type;
 
+    av_log(logger(ctx), AV_LOG_DEBUG, "%s supports raw format %s: ", ctx->name, av_get_pix_fmt_name(pixfmt));
     ret = ioctl(ctx_to_m2mctx(ctx)->fd, VIDIOC_TRY_FMT, fmt);
-    if (ret)
+    if (ret) {
+        av_log(logger(ctx), AV_LOG_DEBUG, "no\n");
         return AVERROR(EINVAL);
+    }
 
+    av_log(logger(ctx), AV_LOG_DEBUG, "yes\n");
     return 0;
 }
 
@@ -698,6 +703,11 @@ void ff_v4l2_context_release(V4L2Context* ctx)
 
 int ff_v4l2_context_init(V4L2Context* ctx)
 {
+    return ff_v4l2_context_init_full(ctx, V4L2_MEMORY_MMAP, NULL);
+}
+
+int ff_v4l2_context_init_full(V4L2Context* ctx, enum v4l2_memory memory, V4L2Context *actx)
+{
     V4L2m2mContext *s = ctx_to_m2mctx(ctx);
     struct v4l2_requestbuffers req;
     int ret, i;
@@ -707,13 +717,15 @@ int ff_v4l2_context_init(V4L2Context* ctx)
         return AVERROR_PATCHWELCOME;
     }
 
+    ctx->memory = memory;
+
     ret = ioctl(s->fd, VIDIOC_G_FMT, &ctx->format);
     if (ret)
         av_log(logger(ctx), AV_LOG_ERROR, "%s VIDIOC_G_FMT failed\n", ctx->name);
 
     memset(&req, 0, sizeof(req));
     req.count = ctx->num_buffers;
-    req.memory = V4L2_MEMORY_MMAP;
+    req.memory = ctx->memory;
     req.type = ctx->type;
     ret = ioctl(s->fd, VIDIOC_REQBUFS, &req);
     if (ret < 0)
@@ -728,7 +740,7 @@ int ff_v4l2_context_init(V4L2Context* ctx)
 
     for (i = 0; i < req.count; i++) {
         ctx->buffers[i].context = ctx;
-        ret = ff_v4l2_buffer_initialize(&ctx->buffers[i], i);
+        ret = ff_v4l2_buffer_initialize(&ctx->buffers[i], i, memory, (actx != NULL ?  &actx->buffers[i] : NULL));
         if (ret < 0) {
             av_log(logger(ctx), AV_LOG_ERROR, "%s buffer[%d] initialization (%s)\n", ctx->name, i, av_err2str(ret));
             goto error;

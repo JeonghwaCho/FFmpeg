@@ -32,6 +32,11 @@
 #include "libavcodec/avcodec.h"
 #include "v4l2_context.h"
 
+enum v4l2_device_type {
+    V4L2_DEVICE_TYPE_DECODER     = 1,
+    V4L2_DEVICE_TYPE_CONVERTER   = 2,
+};
+
 #define container_of(ptr, type, member) ({ \
         const __typeof__(((type *)0)->member ) *__mptr = (ptr); \
         (type *)((char *)__mptr - offsetof(type,member) );})
@@ -42,6 +47,7 @@
 
 typedef struct V4L2m2mContext {
     char devname[PATH_MAX];
+    enum v4l2_device_type device_type;
     int fd;
 
     /* the codec context queues */
@@ -62,6 +68,9 @@ typedef struct V4L2m2mContext {
 
     /* generate DRM frames */
     int output_drm;
+
+    /* use converter */
+    int output_convert;
 } V4L2m2mContext;
 
 typedef struct V4L2m2mPriv
@@ -70,6 +79,9 @@ typedef struct V4L2m2mPriv
 
     V4L2m2mContext *context;
     AVBufferRef    *context_ref;
+
+    V4L2m2mContext *convert;
+    AVBufferRef    *convert_ref;
 
     int num_output_buffers;
     int num_capture_buffers;
@@ -84,6 +96,7 @@ typedef struct V4L2m2mPriv
  * @returns 0 in success, a negative error code otherwise.
  */
 int ff_v4l2_m2m_create_context(AVCodecContext *avctx, V4L2m2mContext **s);
+void v4l2_m2m_destroy_context(void *opaque, uint8_t *context);
 
 
 /**
@@ -94,6 +107,7 @@ int ff_v4l2_m2m_create_context(AVCodecContext *avctx, V4L2m2mContext **s);
  * @returns 0 if a driver is found, a negative number otherwise.
  */
 int ff_v4l2_m2m_codec_init(AVCodecContext *avctx);
+int ff_v4l2_m2m_device_init(AVCodecContext *avctx, V4L2m2mContext *s);
 
 /**
  * Releases all the codec resources if all AVBufferRefs have been returned to the
