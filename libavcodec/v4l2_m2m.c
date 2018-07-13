@@ -153,6 +153,11 @@ static int v4l2_configure_contexts(V4L2m2mContext* s)
         goto error;
     }
 
+    if (s->device_type == V4L2_DEVICE_TYPE_CONVERTER) {
+        av_log(log_ctx, AV_LOG_DEBUG, "delay contexts init for GSC\n");
+        return 0;
+    }
+
     ret = ff_v4l2_context_init(&s->output);
     if (ret) {
         av_log(log_ctx, AV_LOG_ERROR, "no v4l2 output context's buffers\n");

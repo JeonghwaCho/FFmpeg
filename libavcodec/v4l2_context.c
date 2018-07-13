@@ -617,6 +617,7 @@ int ff_v4l2_context_enqueue_packet(V4L2Context* ctx, const AVPacket* pkt)
 int ff_v4l2_context_dequeue_frame(V4L2Context* ctx, AVFrame* frame)
 {
     V4L2Buffer* avbuf = NULL;
+    int ret;
 
     /*
      * blocks until:
@@ -631,7 +632,73 @@ int ff_v4l2_context_dequeue_frame(V4L2Context* ctx, AVFrame* frame)
         return AVERROR(EAGAIN);
     }
 
-    return ff_v4l2_buffer_buf_to_avframe(frame, avbuf);
+    if (!ctx_to_m2mctx(ctx)->output_convert)
+        return ff_v4l2_buffer_buf_to_avframe(frame, avbuf);
+
+    // process buffer with GSC
+    V4L2m2mContext *mfc = ctx_to_m2mctx(ctx);
+    AVCodecContext *avctx = mfc->avctx;
+    V4L2m2mContext *gsc = ((V4L2m2mPriv*)avctx->priv_data)->convert;
+    V4L2Context *const gsc_capture = &gsc->capture;
+    V4L2Context *const gsc_output = &gsc->output;
+
+    /* 1. get GSC buffer corresponding to MFC buffer */
+    V4L2Buffer *gscbuf = NULL;
+    // try to get it directly
+    for (ret = 0; ret < gsc_output->num_buffers; ret++) {
+        if (gsc_output->buffers[ret].status == V4L2BUF_AVAILABLE &&
+            gsc_output->buffers[ret].buf.index == avbuf->buf.index)
+            gscbuf = &(gsc_output->buffers[ret]);
+    }
+    // if buffer is not available, dequeue it
+    while (gscbuf == NULL || gscbuf->buf.index != avbuf->buf.index) {
+        gscbuf = v4l2_dequeue_v4l2buf(gsc_output, 0);
+    }
+
+    /* 2. copy contents from MFC buffer to GSC bufer */
+    switch (gsc_output->memory) {
+    case V4L2_MEMORY_MMAP:
+        av_log(logger(ctx), AV_LOG_WARNING, "XX doing hard buffer copy between MFC and GSC XX\n");
+        for (ret = 0; ret < avbuf->num_planes; ret++) {
+            int bytesused = FFMIN(gscbuf->plane_info[ret].length, avbuf->plane_info[ret].length);
+            int length = gscbuf->plane_info[ret].length;
+            memcpy(gscbuf->plane_info[ret].mm_addr, avbuf->plane_info[ret].mm_addr, bytesused);
+            if (V4L2_TYPE_IS_MULTIPLANAR(gscbuf->buf.type)) {
+                gscbuf->planes[ret].bytesused = bytesused;
+                gscbuf->planes[ret].length = length;
+            } else {
+                gscbuf->buf.bytesused = bytesused;
+                gscbuf->buf.length = length;
+            }
+        }
+        break;
+    case V4L2_MEMORY_DMABUF:
+        // move along
+        break;
+    default:
+        return AVERROR(ENOMEM);
+    }
+    // we update timestamp and timecode
+    memcpy(&gscbuf->buf.timecode, &avbuf->buf.timecode, sizeof(struct v4l2_timecode));
+    memcpy(&gscbuf->buf.timestamp, &avbuf->buf.timestamp, sizeof(struct timeval));
+
+    /* 3. enqueue buffer on GSC output */
+    ret = ff_v4l2_buffer_enqueue(gscbuf);
+    if (ret) return ret;
+
+    /* 4. enqueue buffer back on MFC capture */
+    ff_v4l2_buffer_enqueue(avbuf);
+
+    /* 5. block until conversion is finished */
+    V4L2Buffer* converted = v4l2_dequeue_v4l2buf(gsc_capture, -1);
+    if (!converted) {
+        if (gsc_capture->done)
+            return AVERROR_EOF;
+        return AVERROR(EAGAIN);
+    }
+
+    /* 6. continue with the frame */
+    return ff_v4l2_buffer_buf_to_avframe(frame, converted);
 }
 
 int ff_v4l2_context_dequeue_packet(V4L2Context* ctx, AVPacket* pkt)
@@ -740,7 +807,7 @@ int ff_v4l2_context_init_full(V4L2Context* ctx, enum v4l2_memory memory, V4L2Con
 
     for (i = 0; i < req.count; i++) {
         ctx->buffers[i].context = ctx;
-        ret = ff_v4l2_buffer_initialize(&ctx->buffers[i], i, memory, (actx != NULL ?  &actx->buffers[i] : NULL));
+        ret = ff_v4l2_buffer_initialize(&ctx->buffers[i], i, (actx != NULL ?  &actx->buffers[i] : NULL));
         if (ret < 0) {
             av_log(logger(ctx), AV_LOG_ERROR, "%s buffer[%d] initialization (%s)\n", ctx->name, i, av_err2str(ret));
             goto error;

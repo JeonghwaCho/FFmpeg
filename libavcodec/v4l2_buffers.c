@@ -544,7 +544,7 @@ int ff_v4l2_buffer_avpkt_to_buf(const AVPacket *pkt, V4L2Buffer *out)
     return 0;
 }
 
-int ff_v4l2_buffer_initialize(V4L2Buffer* avbuf, int index, enum v4l2_memory memory, V4L2Buffer* aavbuf)
+int ff_v4l2_buffer_initialize(V4L2Buffer* avbuf, int index, V4L2Buffer* aavbuf)
 {
     V4L2Context *ctx = avbuf->context;
     int ret, i;
@@ -582,7 +582,7 @@ int ff_v4l2_buffer_initialize(V4L2Buffer* avbuf, int index, enum v4l2_memory mem
             ctx->format.fmt.pix_mp.plane_fmt[i].bytesperline :
             ctx->format.fmt.pix.bytesperline;
 
-        switch (memory) {
+        switch (ctx->memory) {
         case V4L2_MEMORY_MMAP:
             if (V4L2_TYPE_IS_MULTIPLANAR(ctx->type)) {
                 avbuf->plane_info[i].length = avbuf->buf.m.planes[i].length;

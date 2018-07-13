@@ -203,6 +203,7 @@ static int v4l2_try_start(AVCodecContext *avctx)
     /* check if conversion is needed */
     capture->av_pix_fmt = ff_v4l2_format_v4l2_to_avfmt(capture->format.fmt.pix_mp.pixelformat, AV_CODEC_ID_RAWVIDEO);
     if (avctx->pix_fmt != capture->av_pix_fmt) {
+        av_log(avctx, AV_LOG_WARNING, "== decoder will use converter ==\n");
         s->output_drm = 0;
         s->output_convert = 1;
         /* 3. configure GSC for conversion */
