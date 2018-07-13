@@ -548,8 +548,9 @@ int ff_v4l2_buffer_initialize(V4L2Buffer* avbuf, int index, enum v4l2_memory mem
 {
     V4L2Context *ctx = avbuf->context;
     int ret, i;
+    struct v4l2_exportbuffer expbuf;
 
-    avbuf->buf.memory = V4L2_MEMORY_MMAP;
+    avbuf->buf.memory = ctx->memory;
     avbuf->buf.type = ctx->type;
     avbuf->buf.index = index;
 
@@ -581,22 +582,42 @@ int ff_v4l2_buffer_initialize(V4L2Buffer* avbuf, int index, enum v4l2_memory mem
             ctx->format.fmt.pix_mp.plane_fmt[i].bytesperline :
             ctx->format.fmt.pix.bytesperline;
 
-        if (V4L2_TYPE_IS_MULTIPLANAR(ctx->type)) {
-            avbuf->plane_info[i].length = avbuf->buf.m.planes[i].length;
-            avbuf->plane_info[i].mm_addr = mmap(NULL, avbuf->buf.m.planes[i].length,
-                                           PROT_READ | PROT_WRITE, MAP_SHARED,
-                                           buf_to_m2mctx(avbuf)->fd,
-                                           avbuf->buf.m.planes[i].m.mem_offset);
-        } else {
-            avbuf->plane_info[i].length = avbuf->buf.length;
-            avbuf->plane_info[i].mm_addr = mmap(NULL, avbuf->buf.length,
-                                          PROT_READ | PROT_WRITE, MAP_SHARED,
-                                          buf_to_m2mctx(avbuf)->fd,
-                                          avbuf->buf.m.offset);
-        }
-
-        if (avbuf->plane_info[i].mm_addr == MAP_FAILED)
+        switch (memory) {
+        case V4L2_MEMORY_MMAP:
+            if (V4L2_TYPE_IS_MULTIPLANAR(ctx->type)) {
+                avbuf->plane_info[i].length = avbuf->buf.m.planes[i].length;
+                avbuf->plane_info[i].mm_addr = mmap(NULL, avbuf->buf.m.planes[i].length,
+                                               PROT_READ | PROT_WRITE, MAP_SHARED,
+                                               buf_to_m2mctx(avbuf)->fd,
+                                               avbuf->buf.m.planes[i].m.mem_offset);
+            } else {
+                avbuf->plane_info[i].length = avbuf->buf.length;
+                avbuf->plane_info[i].mm_addr = mmap(NULL, avbuf->buf.length,
+                                              PROT_READ | PROT_WRITE, MAP_SHARED,
+                                              buf_to_m2mctx(avbuf)->fd,
+                                              avbuf->buf.m.offset);
+            }
+            if (avbuf->plane_info[i].mm_addr == MAP_FAILED)
+                return AVERROR(ENOMEM);
+            break;
+        case V4L2_MEMORY_DMABUF:
+            // export aavbuf
+            memset(&expbuf, 0, sizeof(expbuf));
+            expbuf.type = aavbuf->context->type;
+            expbuf.index = aavbuf->buf.index;
+            expbuf.plane = i;
+            if (ioctl(buf_to_m2mctx(aavbuf)->fd, VIDIOC_EXPBUF, &expbuf) == -1) {
+                av_log(logger(avbuf), AV_LOG_ERROR, "%s context can't export %s buffers\n", avbuf->context->name, aavbuf->context->name);
+                return AVERROR(ENOMEM);
+            }
+            // configure avbuf buffer
+            avbuf->plane_info[i].length = aavbuf->plane_info[i].length;
+            avbuf->planes[i].m.fd = expbuf.fd;
+            break;
+        default:
+            av_log(logger(avbuf), AV_LOG_ERROR, "%s set to invalid memory type\n", avbuf->context->name);
             return AVERROR(ENOMEM);
+        }
     }
 
     avbuf->status = V4L2BUF_AVAILABLE;

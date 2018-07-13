@@ -344,7 +344,7 @@ start:
 
 dequeue:
         memset(&buf, 0, sizeof(buf));
-        buf.memory = V4L2_MEMORY_MMAP;
+        buf.memory = ctx->memory;
         buf.type = ctx->type;
         if (V4L2_TYPE_IS_MULTIPLANAR(ctx->type)) {
             memset(planes, 0, sizeof(planes));
@@ -398,7 +398,7 @@ static V4L2Buffer* v4l2_getfree_v4l2buf(V4L2Context *ctx)
 static int v4l2_release_buffers(V4L2Context* ctx)
 {
     struct v4l2_requestbuffers req = {
-        .memory = V4L2_MEMORY_MMAP,
+        .memory = ctx->memory,
         .type = ctx->type,
         .count = 0, /* 0 -> unmap all buffers from the driver */
     };

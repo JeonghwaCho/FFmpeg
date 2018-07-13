@@ -110,7 +110,7 @@ static int gsc_try_start(AVCodecContext *avctx, V4L2Context *mfc_capture)
 
     /* 2. init the output context with DMABUF buffers */
     if (!output->buffers) {
-        ret = ff_v4l2_context_init_full(output, V4L2_MEMORY_MMAP, mfc_capture);
+        ret = ff_v4l2_context_init_full(output, V4L2_MEMORY_DMABUF, mfc_capture);
         if (ret) {
             av_log(avctx, AV_LOG_ERROR, "can't request output buffers\n");
             return AVERROR(ENOMEM);
