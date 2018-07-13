@@ -269,6 +269,12 @@ static uint8_t * v4l2_get_drm_frame(V4L2Buffer *avbuf)
         layer->planes[2].pitch = avbuf->plane_info[0].bytesperline >> 1;
         break;
 
+    case AV_PIX_FMT_BGR0:
+    case AV_PIX_FMT_BGRA:
+        layer->format = DRM_FORMAT_ARGB8888;
+        layer->nb_planes = 1;
+        break;
+
     default:
         drm_desc->nb_layers = 0;
         break;
@@ -474,6 +480,21 @@ int ff_v4l2_buffer_buf_to_avframe(AVFrame *frame, V4L2Buffer *avbuf)
             frame->data[1] = frame->buf[0]->data +
                 avbuf->plane_info[0].bytesperline *
                 avbuf->context->format.fmt.pix.height;
+            break;
+        case AV_PIX_FMT_YUV420P:
+            if (avbuf->num_planes > 1) {
+                break;
+            }
+            // correct linesize because of exynos GSC linesize bug 
+            frame->linesize[0] = frame->linesize[0]*2/3;
+
+            frame->linesize[1] = frame->linesize[0] >> 1;
+            frame->data[1] = (char*)frame->buf[0]->data +
+                ((frame->linesize[0] * avbuf->context->height));
+
+            frame->linesize[2] = frame->linesize[0] >> 1;
+            frame->data[2] = (char*)frame->data[1] +
+                ((frame->linesize[0] * avbuf->context->height) >> 2);
             break;
         default:
             break;
